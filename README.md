@@ -102,9 +102,6 @@ For the Fisher exact test, the pipeline is built around explicit counting of all
        (e.g., `POSITIVE = 2 × (AC=2_COUNT) + 1 × (AC=1_COUNT)`)
      - **NEGATIVE** = total number of non-ALT alleles  
        (e.g., `NEGATIVE = 2 × (NO_SNP_COUNT) + 1 × (AC=1_COUNT)`)
-   - This is done separately for:
-     - Case cohort (137 DILI / DILI-ALH samples)
-     - Control cohort (503 1000G EUR samples)
 
 5. **Merge case and control allele counts**
    - Using a unique SNP identifier (e.g., `CHR:POS:REF:ALT` or the `ID` column), join the case and control tables.
@@ -208,8 +205,7 @@ Using the harmonized identifiers:
    Example figure reference (once added to the repository):
 
    ![Venn diagram: Fisher vs SNPTEST significant SNPs on chr1](docs/figures/fisher_vs_snptest_chr1_venn.png)
-
-   *(Place the actual Venn diagram under `docs/figures/` and ensure the path matches.)*
+   
 
 
 
