@@ -204,7 +204,7 @@ Using the harmonized identifiers:
 
    Example figure reference (once added to the repository):
 
-   ![Venn diagram: Fisher vs SNPTEST significant SNPs on chr1](docs/figures/fisher_vs_snptest_chr1_venn.png)
+   ![Venn diagram: Fisher vs SNPTEST significant SNPs on chr1](chr1_comparison_SNPTESTvsFISHERtest.png)
    
 
 
