@@ -1,98 +1,69 @@
-# DILI WES vs 1000G EUR: Fisher Exact Test vs SNPTEST
+# DILI / DILI-ALH WES vs 1000G EUR Controls  
+**Comparison of Fisher Exact Test and SNPTEST for Significant SNP Discovery (chr1)**
 
-This repository contains a workflow to identify significant SNPs in
-137 **DILI / DILI-ALH** whole-exome sequencing (WES) samples by
-comparing them to **503 European (EUR)** samples from the 1000 Genomes Project.
+## Overview
 
-Two statistical approaches are used and later compared:
+This repository contains a workflow to identify significant SNPs in **137 DILI and DILI-ALH WES samples** by comparing them to **503 European (EUR) control samples** from the 1000 Genomes Project.
 
-1. **Fisher exact test** using manually derived positive/negative allele counts
-2. **SNPTEST** (planned) using genotype likelihood–based association testing
+Two statistical approaches are used:
 
-At this stage, the repository documents the **Fisher exact test pipeline**
-for **chr1** in both case and control cohorts, plus the structure for adding the
-SNPTEST pipeline later.
+1. **Fisher exact test**  
+   - Manual derivation of allele counts (positive vs negative) from case and control VCFs  
+   - Construction of 2×2 contingency tables per SNP  
+2. **SNPTEST**  
+   - Generation of `.gen` and `.sample` files  
+   - SNP-level association testing using SNPTEST  
 
----
+To speed up method comparison, the initial analyses are performed on **chromosome 1 (chr1)** only.
 
-## Project goals
+The main goals are:
 
-- Filter and harmonize WES VCF data from:
-  - 137 DILI + DILI-ALH cases
-  - 503 1000G EUR controls
-- For each SNP, compute:
-  - **Positive allele count** (ALT allele, case/control)
-  - **Negative allele count** (non-ALT, case/control)
-- Build 2×2 contingency tables and perform **Fisher exact tests**
-- Run **SNPTEST** on the same data and compare:
-  - Overlap of significant SNPs
-  - Effect size direction and p-values
+- To obtain significant SNPs in DILI / DILI-ALH vs 1000G EUR controls  
+- To compare the overlap and concordance of significant SNPs between **Fisher exact test** and **SNPTEST**  
 
 ---
 
-## Data description
+## Data
 
-**Cases**  
-- 137 DILI and DILI-ALH WES samples  
-- Per-sample VCFs (one per individual), initially containing all chromosomes  
-- In the pipeline we restrict to **chr1** to save time for method comparison.
+- **Cases:** 137 WES samples (DILI + DILI-ALH)
+- **Controls:** 503 EUR samples from 1000 Genomes Project
+- **Chromosome:** chr1 (subset of the full WES data used for comparison)
 
-**Controls (1000G EUR)**  
-- 503 European samples from 1000 Genomes  
-- VCFs merged and filtered to match the same SNP-level inclusion criteria as cases  
-- Also restricted to **chr1** for the comparison step.
-
-> **Note**  
-> Raw VCFs and intermediate data files are **not** stored in this repository
-> because of size and privacy. Only scripts and documentation are included.
+> Note: Raw VCF files and individual-level data are **not** stored in the repository due to size and privacy constraints. Only scripts and documentation are included.
 
 ---
 
-## Dependencies
+## Fisher Exact Test Pipeline (chr1)
 
-Core tools used in the Fisher pipeline:
+For the Fisher approach, allele frequencies are counted manually from VCF data to obtain:
 
-- `bash`
-- `awk`
-- `grep`
-- [`bcftools`](http://www.htslib.org/doc/bcftools.html)
-- `bgzip` / `tabix` (from htslib)
-- R or Python (for running Fisher exact tests on the final contingency tables;
-  the exact script can be added later)
+- **POSITIVE** allele counts (ALT alleles)
+- **NEGATIVE** allele counts (non-ALT alleles)
 
-Planned for SNPTEST pipeline:
+This process is performed separately for **cases** and **controls**, and then merged to build 2×2 contingency tables.
 
-- [`SNPTEST`](https://mathgen.stats.ox.ac.uk/genetics_software/snptest/snptest.html)
+### Step 0 — Restrict to chr1
+
+Before running the scripts below, input VCFs are restricted to **chr1** (e.g., using `bcftools view -r 1` or equivalent).
 
 ---
 
-## Repository layout
+### Script 1 — Filter by DP and GQ (`1.filter_DP_GQ.sh`)
 
-```text
-scripts/
-  fisher/
-    01_filter_DP_GQ.sh          # Per-sample DP/GQ filter
-    02_bgzip.sh                 # Compress VCFs
-    03_snp_filter.sh            # Keep biallelic SNPs only
-    04_merge.sh                 # Merge samples into cohort VCF
-    05_snp_filter_merged_cohort.sh
-    05a_unzip.sh
-    06_rm_metadata.sh           # Remove '##' metadata lines
-    07_snp_count.sh             # Count samples carrying the SNP
-    08_no_snp_count.sh          # Compute NO_SNP_COUNT per variant
-    09_allele_count.sh          # Count AC=1 and AC=2 per variant
-    10_conti_pos_neg.sh         # Derive POSITIVE / NEGATIVE allele counts
-  snptest/
-    (to be added)
+```bash
+#!/bin/bash
 
-docs/
-  workflow_overview.md          # High-level overview
-  fisher_pipeline_chr1.md       # Detailed Fisher pipeline notes
+# Script:1.filter_DP_GQ.sh
 
-results/
-  fisher_chr1/                  # Fisher test outputs (not tracked)
-  snptest_chr1/                 # SNPTEST outputs (not tracked)
-
-data/
-  cases/                        # Case VCFs (not tracked)
-  controls/                     # 1000G VCFs (not tracked)
+for vcf in *.final.vcf
+do
+  awk -F'\t' '
+    /^#/ {print; next}  # Print all header lines
+    {
+      split($10, arr, ":");  # Assuming the first sample is in column 10
+      dp = arr[3];           # Adjust index if DP is not the 3rd subfield
+      gq = arr[4];           # Adjust index if GQ is not the 4th subfield
+      if (dp >= 20 && gq >= 30) print  # Keep lines where DP >= 20 and GQ >= 30
+    }
+  ' "$vcf" > "${vcf%.vcf}.filtered.vcf"
+done
